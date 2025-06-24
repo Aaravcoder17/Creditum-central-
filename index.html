@@ -1,0 +1,230 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Creditums Central</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(to right, #e0f7fa, #fce4ec);
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 700px;
+      margin: 50px auto;
+      background: #fff;
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      position: relative;
+    }
+    h1 {
+      text-align: center;
+      color: #880e4f;
+      margin-bottom: 20px;
+    }
+    input, button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 10px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      font-size: 16px;
+    }
+    button {
+      background-color: #ec407a;
+      color: white;
+      font-weight: bold;
+      border: none;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background-color: #d81b60;
+    }
+    .hidden {
+      display: none;
+    }
+    .log, .balance, .ids {
+      background: #fce4ec;
+      padding: 15px;
+      border-radius: 12px;
+      margin-top: 20px;
+      max-height: 250px;
+      overflow-y: auto;
+      font-size: 14px;
+    }
+    .success-animation {
+      text-align: center;
+      margin-top: 20px;
+      animation: fadeIn 1s ease;
+    }
+    .tick {
+      font-size: 50px;
+      color: green;
+    }
+    @keyframes fadeIn {
+      0% { opacity: 0; transform: scale(0.9); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    .setpin {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>💖 Creditums Central 💖</h1><div id="loginSection">
+  <h3>Sign In</h3>
+  <input type="text" id="username" placeholder="Enter your name" />
+  <input type="text" id="cardID" placeholder="Enter your 12-character ID" />
+  <button onclick="signIn()">Sign In</button>
+  <p id="loginError" style="color:red"></p>
+</div>
+
+<div id="mainSection" class="hidden">
+  <div class="setpin">
+    <input type="password" id="userPIN" maxlength="6" placeholder="Set 6-digit PIN" oninput="savePIN()" />
+  </div>
+  <p><strong>Welcome:</strong> <span id="loggedUser"></span></p>
+  <p><strong>Card ID:</strong> <span id="loggedID"></span></p>
+
+  <input type="text" id="paymentInput" placeholder="e.g., paying 100cr to Rajni Bala" />
+  <button onclick="submitPayment()">Submit Payment</button>
+
+  <div id="successAnim" class="success-animation hidden">
+    <div class="tick">✔️</div>
+    <div id="paidInfo"></div>
+  </div>
+
+  <div class="balance" id="balanceDisplay"></div>
+  <div class="ids" id="userIDs"></div>
+  <div class="log" id="transactionLog"></div>
+</div>
+
+  </div>  <script>
+    let users = {
+      "Aarav": { id: "A39K-F1D7-28Q2", balance: 1000 },
+      "Rajni Bala": { id: "ABCD-1234-EF17", balance: 1000 },
+      "Rohit": { id: "Z4N1-L9C2-AGM3", balance: 1000 },
+      "Akshit": { id: "AS08-91PS-MK18", balance: 1000 },
+      "Hariti Sharma": { id: "B1F6-U9Z4-R5L0", balance: 1000 },
+      "Ranjana Devi": { id: "H6W8-J2T5-K1X9", balance: 1000 },
+      "Amit Kumar": { id: "X3M9-D7K2-V9S8", balance: 1000 },
+      "Samridhi": { id: "25Y7-G0R3-J5N1", balance: 1000 }
+    };
+
+    if (localStorage.getItem("usersData")) users = JSON.parse(localStorage.getItem("usersData"));
+
+    let loggedInUser = null;
+    const loggedDeviceUser = localStorage.getItem("creditumsUser");
+
+    if (loggedDeviceUser && users[loggedDeviceUser]) {
+      loggedInUser = loggedDeviceUser;
+      showMainSection();
+    }
+
+    function signIn() {
+      const name = document.getElementById("username").value.trim();
+      const id = document.getElementById("cardID").value.trim();
+      const errorMsg = document.getElementById("loginError");
+      if (loggedDeviceUser) return errorMsg.innerText = `Device already locked to: ${loggedDeviceUser}`;
+      if (users[name] && users[name].id === id) {
+        loggedInUser = name;
+        localStorage.setItem("creditumsUser", name);
+        showMainSection();
+      } else {
+        errorMsg.innerText = `Invalid login. Try again.`;
+      }
+    }
+
+    function showMainSection() {
+      document.getElementById("loginSection").classList.add("hidden");
+      document.getElementById("mainSection").classList.remove("hidden");
+      document.getElementById("loggedUser").innerText = loggedInUser;
+      document.getElementById("loggedID").innerText = users[loggedInUser].id;
+      renderLog();
+      renderIDs();
+      updateBalances();
+
+      const pinKey = `pin-${loggedInUser}`;
+      const savedPIN = localStorage.getItem(pinKey);
+      const pinInput = document.getElementById("userPIN");
+      if (savedPIN) {
+        pinInput.value = "******";
+        pinInput.disabled = true;
+      } else {
+        pinInput.disabled = false;
+      }
+    }
+
+    function savePIN() {
+      const pinInput = document.getElementById("userPIN");
+      const pin = pinInput.value.trim();
+      const pinKey = `pin-${loggedInUser}`;
+      if (!localStorage.getItem(pinKey) && /^\d{6}$/.test(pin)) {
+        localStorage.setItem(pinKey, pin);
+        pinInput.value = "******";
+        pinInput.disabled = true;
+      }
+    }
+
+    function submitPayment() {
+      const input = document.getElementById("paymentInput").value.trim();
+      const pinKey = `pin-${loggedInUser}`;
+      const savedPIN = localStorage.getItem(pinKey);
+      const typedPIN = prompt("Enter your 6-digit PIN to confirm:");
+      if (typedPIN !== savedPIN) return alert("Incorrect PIN. Payment canceled.");
+
+      const pattern = /paying (\d+)cr to ([A-Za-z ]+)/i;
+      const match = input.match(pattern);
+      const sender = loggedInUser;
+      if (!match) return alert("Invalid format. Use: 'paying 100cr to Name'");
+      const amount = parseInt(match[1]);
+      const receiver = match[2].trim();
+      if (!users[receiver] || receiver === sender) return alert("Receiver not found or invalid");
+      if (amount < 1 || amount > users[sender].balance) return alert("Invalid amount range");
+
+      users[sender].balance -= amount;
+      users[receiver].balance += amount;
+      localStorage.setItem("usersData", JSON.stringify(users));
+
+      const time = new Date().toLocaleString();
+      const logEntry = `[${time}] ${sender} → ${receiver}: ${amount}cr`;
+      const history = JSON.parse(localStorage.getItem("creditumsLog") || "[]");
+      history.push(logEntry);
+      localStorage.setItem("creditumsLog", JSON.stringify(history));
+
+      document.getElementById("paymentInput").value = "";
+      updateBalances();
+      renderLog();
+      const anim = document.getElementById("successAnim");
+      const paidInfo = document.getElementById("paidInfo");
+      paidInfo.innerText = `${amount}cr sent to ${receiver}`;
+      anim.classList.remove("hidden");
+      setTimeout(() => anim.classList.add("hidden"), 3000);
+    }
+
+    function updateBalances() {
+      let output = "<h4>💳 Live Balances:</h4><ul>";
+      for (const name in users) output += `<li><strong>${name}</strong>: ${users[name].balance}cr</li>`;
+      output += "</ul>";
+      document.getElementById("balanceDisplay").innerHTML = output;
+    }
+
+    function renderLog() {
+      const history = JSON.parse(localStorage.getItem("creditumsLog") || "[]");
+      document.getElementById("transactionLog").innerHTML = history.map(entry => `<p>${entry}</p>`).join("");
+    }
+
+    function renderIDs() {
+      let ids = "<h4>🆔 User IDs:</h4><ul>";
+      for (const name in users) ids += `<li>${name} → ${users[name].id}</li>`;
+      ids += "</ul>";
+      document.getElementById("userIDs").innerHTML = ids;
+    }
+  </script></body>
+</html>
